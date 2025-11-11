@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy CodeLlama-7b-Instruct-hf on SageMaker'
+
+Parameters:
+  ModelName:
+    Type: String
+    Default: codellama-7b-instruct
+    Description: Name for the SageMaker model
+  
+  EndpointName:
+    Type: String
+    Default: codellama-endpoint
+    Description: Name for the SageMaker endpoint
+  
+  InstanceType:
+    Type: String
+    Default: ml.g5.2xlarge
+    Description: Instance type for the endpoint
+    AllowedValues:
+      - ml.g5.2xlarge
+      - ml.g5.4xlarge
+      - ml.g5.12xlarge
+  
+  InitialInstanceCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    Description: Initial number of instances
+
+Resources:
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}/*'
+                  - !Sub 'arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}'
+
+  CodeLlamaModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      ModelName: !Ref ModelName
+      ExecutionRoleArn: !GetAtt SageMakerExecutionRole.Arn
+      PrimaryContainer:
+        Image: !Sub '763104351884.dkr.ecr.${AWS::Region}.amazonaws.com/huggingface-pytorch-tgi-inference:2.1.1-tgi2.0.1-gpu-py310-cu121-ubuntu22.04'
+        Environment:
+          HF_MODEL_ID: codellama/CodeLlama-7b-Instruct-hf
+          HF_TASK: text-generation
+          MAX_INPUT_LENGTH: '4096'
+          MAX_TOTAL_TOKENS: '8192'
+          SM_NUM_GPUS: '1'
+
+  CodeLlamaEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      EndpointConfigName: !Sub '${EndpointName}-config'
+      ProductionVariants:
+        - ModelName: !GetAtt CodeLlamaModel.ModelName
+          VariantName: AllTraffic
+          InitialInstanceCount: !Ref InitialInstanceCount
+          InstanceType: !Ref InstanceType
+          InitialVariantWeight: 1.0
+
+  CodeLlamaEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointName: !Ref EndpointName
+      EndpointConfigName: !GetAtt CodeLlamaEndpointConfig.EndpointConfigName
+
+Outputs:
+  EndpointName:
+    Description: Name of the SageMaker endpoint
+    Value: !GetAtt CodeLlamaEndpoint.EndpointName
+    Export:
+      Name: !Sub '${AWS::StackName}-EndpointName'
+  
+  EndpointArn:
+    Description: ARN of the SageMaker endpoint
+    Value: !Ref CodeLlamaEndpoint
+    Export:
+      Name: !Sub '${AWS::StackName}-EndpointArn'
+  
+  ExecutionRoleArn:
+    Description: ARN of the SageMaker execution role
+    Value: !GetAtt SageMakerExecutionRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
