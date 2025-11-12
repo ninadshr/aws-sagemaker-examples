@@ -26,7 +26,8 @@ args = parser.parse_args()
 try:
     role = sagemaker.get_execution_role()
 except ValueError:
-    role = "arn:aws:iam::706163521949:role/service-role/AmazonSageMaker-ExecutionRole-20251029T061649"
+    # Replace with your SageMaker execution role ARN
+    role = "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole"
     print(f"Using SageMaker execution role: {role}")
 
 # Get region and session
@@ -58,7 +59,7 @@ s3_prefix = args.endpoint_name.replace("-", "_")
 s3_path = S3Uploader.upload(model_artifact, f"s3://{sess.default_bucket()}/{s3_prefix}")
 print(f"Model artifact uploaded to: {s3_path}")
 
-# Get Hugging Face DLC image URI
+# Get Hugging Face DLC image URI (AWS Deep Learning Container)
 image_uri = f"763104351884.dkr.ecr.{region}.amazonaws.com/huggingface-pytorch-inference:2.0.0-transformers4.28.1-gpu-py310-cu118-ubuntu20.04"
 
 # Create HuggingFace Model

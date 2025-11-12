@@ -8,7 +8,8 @@ import os
 try:
     role = sagemaker.get_execution_role()
 except ValueError:
-    role = "arn:aws:iam::706163521949:role/service-role/AmazonSageMaker-ExecutionRole-20251029T061649"
+    # Replace with your SageMaker execution role ARN
+    role = "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole"
     print(f"Using SageMaker execution role: {role}")
 
 sess = sagemaker.Session()
